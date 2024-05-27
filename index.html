@@ -1,0 +1,133 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="icon" href="data:">
+<title>vr-lenspark</title>
+<!DOCTYPE html>
+<body style="margin:0; background-color: #333;">
+<div id="container"></div>
+
+<div id="info" style="position: absolute; top: .5em; left: .5em; background-color: rgba(255, 255, 255, .8); padding: .3em;">
+VR-lenspark for Quest/VisionPro with <a href="https://threejs.org" style="color: black !important;">three.js</a><br>
+<a href=https://github.com/code4fukui/vr-lenspark>src on GitHub</a><br>
+</div>
+
+<style>
+body {
+  font-family: sans-serif;
+}
+a {
+  color: black !important;
+}
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://code4fukui.github.io/three.js/build/three.module.js",
+    "three/addons/": "https://code4fukui.github.io/three.js/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { XRButton } from 'https://code4fukui.github.io/fisheyes-viewer/XRButton.js';
+import { createSpatialPhotoSBS } from "https://code4fukui.github.io/fisheyes-viewer/createSpatialPhotoSBS.js";
+import { isVisionPro } from "https://code4fukui.github.io/fisheyes-viewer/isVisionPro.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+export const waitLoadGLTF = (path) => {
+  const loader = new GLTFLoader();
+  return new Promise((resolve) => {
+    loader.load(path, gltf => {
+      gltf.scene.traverse((child) => {
+        if (child.isMesh && child.material.map) {
+          child.material.map.encoding = THREE.sRGBEncoding;
+        }
+      });
+      resolve(gltf.scene);
+    });
+  });
+};
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); // alpha for AR
+//renderer.setClearColor(new THREE.Color(0xFDFDFD));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(devicePixelRatio);
+
+if (!isVisionPro()) {
+  renderer.outputEncoding = THREE.sRGBEncoding;
+}
+
+// WebXR
+//document.body.appendChild(XRButton.createButton(renderer, { spaceType: "local-floor" }));
+document.body.appendChild(XRButton.createButton(renderer, { spaceType: "local" }));
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.01, 100);
+
+camera.layers.enable(1); // render left view when no stereo available
+
+const offy = isVisionPro() ? .6 : 0;
+
+{
+  const path = "./lenspark-waffle.glb";
+  const model = await waitLoadGLTF(path);
+  model.position.z = -.5;
+  model.position.x = .2;
+  model.position.y = offy - 0.2;
+  scene.add(model);
+}
+{
+  const path = "./lenspark-hotsand.glb";
+  const model = await waitLoadGLTF(path);
+  model.position.z = -.5;
+  model.position.x = -.2;
+  model.position.y = offy - 0.2;
+  scene.add(model);
+}
+
+/*
+//const testurl = "test.jpg";
+const testurl = "photo/226A0043.JPG";
+const img = new URL(location.href).searchParams.get("url") || testurl;
+console.log(img);
+
+//const photo = createSpatial2DPhotoSBS(img, true);
+const photo = createSpatialPhotoSBS(img, true);
+photo.position.z = .5;
+photo.position.y = offy;
+scene.add(photo);
+*/
+
+/*
+// スポットライト(色, 光の強さ, 距離, 照射角, ボケ具合, 減衰率)
+const spotLight = new THREE.SpotLight(0xffffff);
+spotLight.position.set(1, 1, 4.5);
+spotLight.castShadow = true;
+scene.add(spotLight);
+*/
+
+// アンビエントライト
+const light = new THREE.AmbientLight(0xffffff); // soft white light
+scene.add(light);
+
+container.appendChild(renderer.domElement);
+
+const orbitControls = new OrbitControls(camera, renderer.domElement);
+orbitControls.target = new THREE.Vector3(0, 0, -1.8);
+
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+renderer.setAnimationLoop(() => {
+  //orbitControls.update();
+  renderer.render(scene, camera);
+});
+
+</script>
+</body>
+
+</html>
