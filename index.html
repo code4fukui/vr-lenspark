@@ -29,46 +29,14 @@ a {
 </script>
 
 <script type="module">
-import * as THREE from 'three';
-import { XRButton } from 'https://code4fukui.github.io/fisheyes-viewer/XRButton.js';
-import { createSpatialPhotoSBS } from "https://code4fukui.github.io/fisheyes-viewer/createSpatialPhotoSBS.js";
-import { isVisionPro } from "https://code4fukui.github.io/fisheyes-viewer/isVisionPro.js";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import * as THREE from "three";
+import { initXR, waitLoadGLTF, createModelText, isVisionPro } from "./threeutil.js";
 
-export const waitLoadGLTF = (path) => {
-  const loader = new GLTFLoader();
-  return new Promise((resolve) => {
-    loader.load(path, gltf => {
-      gltf.scene.traverse((child) => {
-        if (child.isMesh && child.material.map) {
-          child.material.map.encoding = THREE.sRGBEncoding;
-        }
-      });
-      resolve(gltf.scene);
-    });
-  });
-};
-
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); // alpha for AR
-//renderer.setClearColor(new THREE.Color(0xFDFDFD));
-renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(devicePixelRatio);
-
-if (!isVisionPro()) {
-  renderer.outputEncoding = THREE.sRGBEncoding;
-}
-
-// WebXR
-//document.body.appendChild(XRButton.createButton(renderer, { spaceType: "local-floor" }));
-document.body.appendChild(XRButton.createButton(renderer, { spaceType: "local" }));
-
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.01, 100);
-
-camera.layers.enable(1); // render left view when no stereo available
+const { renderer, scene, camera } = initXR();
 
 const offy = isVisionPro() ? .6 : 0;
+
+const txts = [];
 
 {
   const path = "./lenspark-waffle.glb";
@@ -77,6 +45,13 @@ const offy = isVisionPro() ? .6 : 0;
   model.position.x = .2;
   model.position.y = offy - 0.2;
   scene.add(model);
+
+  const txt = createModelText("ワッフル", .3);
+  txt.position.x = model.position.x;
+  txt.position.z = model.position.z;
+  txt.position.y = model.position.y + .2;
+  scene.add(txt);
+  txts.push(txt);
 }
 {
   const path = "./lenspark-hotsand.glb";
@@ -85,50 +60,20 @@ const offy = isVisionPro() ? .6 : 0;
   model.position.x = -.2;
   model.position.y = offy - 0.2;
   scene.add(model);
+
+  const txt = createModelText("ホットサンド", .3);
+  txt.position.x = model.position.x;
+  txt.position.z = model.position.z;
+  txt.position.y = model.position.y + .2;
+  scene.add(txt);
+  txts.push(txt);
 }
 
-/*
-//const testurl = "test.jpg";
-const testurl = "photo/226A0043.JPG";
-const img = new URL(location.href).searchParams.get("url") || testurl;
-console.log(img);
-
-//const photo = createSpatial2DPhotoSBS(img, true);
-const photo = createSpatialPhotoSBS(img, true);
-photo.position.z = .5;
-photo.position.y = offy;
-scene.add(photo);
-*/
-
-/*
-// スポットライト(色, 光の強さ, 距離, 照射角, ボケ具合, 減衰率)
-const spotLight = new THREE.SpotLight(0xffffff);
-spotLight.position.set(1, 1, 4.5);
-spotLight.castShadow = true;
-scene.add(spotLight);
-*/
-
-// アンビエントライト
-const light = new THREE.AmbientLight(0xffffff); // soft white light
-scene.add(light);
-
-container.appendChild(renderer.domElement);
-
-const orbitControls = new OrbitControls(camera, renderer.domElement);
-orbitControls.target = new THREE.Vector3(0, 0, -1.8);
-
-addEventListener("resize", () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
-
 renderer.setAnimationLoop(() => {
-  //orbitControls.update();
   renderer.render(scene, camera);
+  txts.forEach(i => i.lookAt(camera.position));
 });
 
 </script>
 </body>
-
 </html>
